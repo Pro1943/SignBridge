@@ -1,129 +1,119 @@
-# SignBridge ✋🧠
+# SignBridge
 
-**Prototype 1 – Real-Time Sign & Gesture Recognition**
+**Dual-mode sign language classifier for classroom accessibility.** Combines static hand pose recognition (A, H, GOOD, BAD) with motion gesture recognition (HELLO, J, Z) using MediaPipe landmarks and RandomForest models. Desktop webcam prototype optimized for low-end hardware.
 
-SignBridge is an AI-powered assistive communication system designed to bridge the gap between sign language users and non-signers. This repository contains **Prototype 1**, which focuses on **real-time hand tracking and basic sign/gesture interpretation** using computer vision.
+## Problem
 
-> 🚧 This is an early-stage prototype built for learning, experimentation, and proof-of-concept.
+Communication barriers in classrooms for deaf/hard-of-hearing students. Current solutions require expensive hardware or complex mobile apps. SignBridge demonstrates a practical, low-cost approach using standard webcams and laptops.
 
----
+## Solution Overview
 
-## 🌍 Problem Statement
+SignBridge processes webcam video in real-time:
 
-In classrooms and everyday interactions, deaf or hard-of-hearing individuals often face communication barriers due to the lack of accessible sign language interpretation tools. Human interpreters are not always available, scalable, or affordable.
+1. **MediaPipe HandLandmarker** extracts 21 hand landmarks (x, y, z coordinates)
+2. **Static model** classifies single-frame poses (A, H, GOOD, BAD)
+3. **Motion model** classifies 16-frame gesture sequences (HELLO, J, Z)
+4. **Gating logic** selects the appropriate prediction based on wrist movement and confidence
 
----
+The system prioritizes accuracy over speed, abstaining from predictions below confidence thresholds.
 
-## 💡 Solution Overview
-
-SignBridge aims to provide a **real-time, camera-based sign language assistant** that:
-- Detects hand landmarks using AI
-- Interprets basic sign language gestures
-- Translates gestures into understandable text
-- Lays the foundation for two-way communication in the future
-
-Prototype 1 focuses purely on **gesture recognition**, not full language translation.
-
----
-
-## ✨ Features (Prototype 1)
-
-- 📷 Real-time webcam input
-- ✋ Accurate hand landmark detection (MediaPipe Task API)
-- 🧠 Static gesture recognition:
-  - 👍 Thumbs Up → **GOOD / OK / FINE**
-  - 👎 Thumbs Down → **NOT GOOD / NOT OK**
-  - ✊ All fingers closed → **Letter "A" (ASL)**
-- 👋 Dynamic gesture recognition:
-  - Hand wave → **HELLO**
-- ⚡ Real-time FPS display
-- 🛑 Gesture cooldown to prevent repeated triggers
-
----
-
-## 🛠️ Tech Stack
-
-- **Python 3.12**
-- **OpenCV** – video capture & rendering
-- **MediaPipe Tasks API** – hand landmark detection
-- **NumPy** – numerical operations
-
----
-
-## 🚀 Getting Started
-
-### 1️⃣ Prerequisites
-
-- Python 3.12
-- A working webcam
-
-### 2️⃣ Install dependencies:
-```bash
-pip install opencv-python mediapipe numpy
+## System Architecture
 ```
+Webcam (640x480) → MediaPipe HandLandmarker → 63 Features
+                        ↓
+              Static Model (63→4 classes)   Motion Model (1008→3 classes)
+                        ↓
+             Confidence Gating → Live Display (12 FPS optimized)
+```
+**Key design choice**: Motion detection only triggers when wrist displacement exceeds threshold (0.15 pixels), reducing false positives.
 
-### 3️⃣ Run the Prototype
+## Technical Implementation
 
+### Models
+| Model | Input | Output | Training Data |
+|-------|-------|--------|---------------|
+| Static | 63 features (1 frame) | A, H, GOOD, BAD | 100+ samples/class |
+| Motion | 1008 features (16 frames) | HELLO, J, Z | 20+ sequences/class |
+
+### Optimizations
+- Frame skipping (MediaPipe every 2nd frame)
+- MJPG webcam capture
+- Reduced resolution (640x480)
+- Monotonic timestamps for VIDEO mode stability
+
+### Performance
+- ~25 FPS (no hand), ~12 FPS (hand detected)
+- Windows laptop + integrated webcam
+- Single signer dataset (controlled lighting)
+
+## Limitations
+
+- Vocabulary limited to 7 signs (4 static + 3 motion)
+- Desktop prototype only (no mobile/embedded)
+- Single signer dataset (needs multi-signer expansion)
+- Classroom lighting required for reliable detection
+- No real-time translation (classification only)
+
+## What's Built vs Future Work
+
+**Built**: Complete end-to-end prototype (collect → train → infer)   
+**Future**: ESP32 integration (data capture & I/O), Android app, expanded vocabulary, multi-signer training
+
+## Repository Structure
+```
+SignBridge/
+├── dataset/
+│   ├── static/training/     # Static training CSVs
+│   ├── static/testing/      # Static testing CSVs
+│   ├── motion/training/     # Motion training CSVs
+│   └── motion/testing/      # Motion testing CSVs
+├── models/
+│   ├── model_trainer.py            # Static model training
+│   ├── motion_trainer.py           # Motion model training
+│   ├── model_tester.py             # Static model testing
+│   ├── signbridge_model.pkl        # Static model
+│   └── signbridge_motion_model.pkl # Motion model
+├── results/                 # Confusion matrices + accuracy plots
+├── signbridge.py            # Main live demo
+├── requirements.txt         # Python 3.12 deps
+└── hand_landmarker.task     # MediaPipe model
+```
+**Why this structure?**   
+The repository is structured to clearly separate data collection, model training, and live inference.
+## Quick Start
+
+### Prerequisites
+- Python 3.12
+- Webcam
+- Windows
+
+### Setup
+```bash
+pip install -r requirements.txt
+```
+### How to run
 ```bash
 python signbridge.py
 ```
 
-Press **Q** to quit.
+**Controls**: `Q` to quit  
+**Gestures**: Hold static poses or perform motion gestures (HELLO wave, J flick, Z zigzag)
+
+## Development Decisions
+
+- **RandomForest over deep learning**: No GPU required, trains instantly on laptops
+- **16-frame motion window**: Balances gesture capture vs responsiveness
+- **Confidence gating**: Prioritizes accuracy over false positives
+- **Frame skipping**: Maintains usable FPS on low-end hardware
+
+## Competition Entry
+
+**Creator Colosseum: Student Founders. Real Startups**  
+**Team**: Solo student developer  
+**Timeline**: Initial MVP developed over one focused week, with iterative testing and refinement  
+**Focus**: Realistic MVP demonstrating technical feasibility for accessibility
 
 ---
 
-## 🧪 Current Limitations
-
-- Supports only one hand
-- Recognizes a small set of gestures
-- Rule-based logic (no ML classification yet)
-- No speech output or reverse translation (text → sign)
-
-These limitations are intentional for Prototype 1.
-
+*Built with discipline, not hype.*
 ---
-
-## 🛣️ Roadmap
-
-- 🔊 Text-to-Speech output
-- 🧠 ML-based gesture classifier
-- 🔤 Expanded sign vocabulary
-- 🔄 Two-way communication (text/speech → sign)
-- 📱 Mobile & web deployment
-
----
-
-## 🎓 Learning Goals
-
-This project is also a personal learning journey toward becoming an **ML Engineer**, covering:
-- Computer Vision fundamentals
-- Real-time AI systems
-- Gesture analysis
-- Scalable project architecture
-
----
-
-## ⚠️ Disclaimer
-
-SignBridge is **not a certified medical or accessibility device**. It is an experimental educational project and should not replace professional sign language interpreters.
-
----
-
-## 📜 License
-
-This project is licensed under the Creative Commons Attribution–NonCommercial 4.0
-International License (CC BY-NC 4.0).
-
-Commercial use is strictly prohibited.
-Attribution to the original author (Pro 1943) is mandatory.
-
----
-
-## 👤 Author
-
-**Pro 1943**  
-Student | Aspiring ML Engineer  
-
----
-
-> "Building never stops." 🚀
