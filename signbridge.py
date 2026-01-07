@@ -10,7 +10,7 @@ from mediapipe.tasks.python import vision
 # =========================
 # PATHS (match your structure)
 # =========================
-ROOT = Path(__file__).resolve().parent  # project root (C:.)
+ROOT = Path(__file__).resolve().parent
 TASK_PATH = ROOT / "hand_landmarker.task"
 
 STATIC_MODEL_PATH = ROOT / "models" / "signbridge_model.pkl"
@@ -48,15 +48,15 @@ options = HandLandmarkerOptions(
     base_options=base_options,
     running_mode=VisionRunningMode.VIDEO,
     num_hands=1,
-    min_hand_detection_confidence=0.7,
-    min_tracking_confidence=0.7,
+    min_hand_detection_confidence=0.5,  # motion-friendly
+    min_tracking_confidence=0.5,        # motion-friendly
 )
 
 # =========================
 # MOTION BUFFER
 # =========================
 SEQ_LEN = 16
-motion_buffer = []     # list of (63,) vectors
+motion_buffer = []   # list of (63,) vectors
 wrist_x_buf = []
 wrist_y_buf = []
 
@@ -67,23 +67,32 @@ MOTION_MIN_CONF = 60.0
 last_text = "---"
 cooldown = 0
 
+# =========================
+# MAIN LOOP
+# =========================
 with vision.HandLandmarker.create_from_options(options) as landmarker:
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
+    if not cap.isOpened():
+        print("❌ Camera not opened")
+        raise SystemExit(1)
+
     fps_prev = time.time()
+    ts = 0  # IMPORTANT: monotonic timestamps for VIDEO mode [web:245]
 
     while cap.isOpened():
         ret, frame = cap.read()
-        if not ret:
-            break
+        if not ret or frame is None:
+            continue
 
         frame = cv2.flip(frame, 1)
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_img = mp_image(image_format=mp_image_format.SRGB, data=rgb)
 
-        result = landmarker.detect_for_video(mp_img, int(time.time() * 1000))
+        ts += 33
+        result = landmarker.detect_for_video(mp_img, ts)
 
         chosen = None
 
@@ -96,7 +105,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
                 color = (0, 255, 255) if i % 5 == 0 else (0, 255, 0)
                 cv2.circle(frame, (x, y), 5 if i % 5 == 0 else 3, color, -1)
 
-            # Current 63
+            # 63 features
             feats63 = np.array([[lm.x, lm.y, lm.z] for lm in h], dtype=np.float32).flatten()
 
             # Update motion buffers
@@ -118,7 +127,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
             if len(wrist_x_buf) >= SEQ_LEN:
                 motion_score = (max(wrist_x_buf) - min(wrist_x_buf)) + (max(wrist_y_buf) - min(wrist_y_buf))
 
-            # --- MOTION PRED (only if buffer full) ---
+            # --- MOTION PRED ---
             motion_pred = None
             motion_conf = 0.0
             if len(motion_buffer) == SEQ_LEN:
@@ -150,6 +159,9 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
         fps_prev = now
         cv2.putText(frame, f"FPS: {fps}", (20, frame.shape[0] - 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (120, 255, 120), 2)
+
+        cv2.putText(frame, "Q=Quit", (20, frame.shape[0] - 60),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 200, 200), 2)
 
         cv2.imshow("SignBridge", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):

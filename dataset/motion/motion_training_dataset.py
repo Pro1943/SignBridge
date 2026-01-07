@@ -11,13 +11,13 @@ from mediapipe.tasks.python import vision
 # SETTINGS
 # =========================
 SEQ_LEN = 16
-FRAME_DELAY = 0.03
+FRAME_DELAY = 0.01          # keep small; motion needs more attempts
+MAX_ATTEMPTS = 90           # max frames to try to collect 16 valid ones (~3 sec)
 
 ROOT = Path(__file__).resolve().parents[2]  # .../SignBridge
 TASK_PATH = ROOT / "hand_landmarker.task"
 OUT_DIR = Path(__file__).resolve().parent / "training"
 CSV_PATH = OUT_DIR / "motion_sequences_train.csv"
-
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 LABEL_MAP = {
@@ -26,7 +26,9 @@ LABEL_MAP = {
     ord("z"): "Z",
 }
 
+# =========================
 # MediaPipe Setup
+# =========================
 BaseOptions = python.BaseOptions
 HandLandmarkerOptions = vision.HandLandmarkerOptions
 VisionRunningMode = vision.RunningMode
@@ -39,20 +41,33 @@ options = HandLandmarkerOptions(
     base_options=base_options,
     running_mode=VisionRunningMode.VIDEO,
     num_hands=1,
-    min_hand_detection_confidence=0.7,
-    min_tracking_confidence=0.7,
+    min_hand_detection_confidence=0.5,
+    min_tracking_confidence=0.5,
 )
 
-# CSV Setup
+# =========================
+# CSV HEADER (ALWAYS REPAIR)
+# =========================
 header = []
 for t in range(SEQ_LEN):
     for i in range(21):
         header += [f"x{i}_t{t}", f"y{i}_t{t}", f"z{i}_t{t}"]
 header.append("label")
 
-if not CSV_PATH.exists():
+need_header = True
+if CSV_PATH.exists():
+    try:
+        with open(CSV_PATH, "r", newline="") as f:
+            first_line = f.readline().strip()
+        # If empty file OR doesn't contain the word label -> treat as broken
+        need_header = (first_line == "") or ("label" not in first_line)
+    except:
+        need_header = True
+
+if need_header:
     with open(CSV_PATH, "w", newline="") as f:
         csv.writer(f).writerow(header)
+    print("🛠️ CSV header written/repaired!")
 
 print("🎥 Motion TRAIN collector")
 print("Keys: H=HELLO | J=J | Z=Z | Q=Quit")
@@ -65,68 +80,90 @@ def extract_63(hand_landmarks):
     return np.array(feats, dtype=np.float32)
 
 with vision.HandLandmarker.create_from_options(options) as landmarker:
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Windows stable
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    while cap.isOpened():
+    if not cap.isOpened():
+        print("❌ Camera not opened")
+        raise SystemExit(1)
+
+    ts = 0  # monotonic timestamp counter for VIDEO mode
+
+    while True:
         ret, frame = cap.read()
-        if not ret: break
+        if not ret or frame is None:
+            continue
 
         frame = cv2.flip(frame, 1)
 
-        cv2.putText(frame, "MOTION TRAIN: H=HELLO J=J Z=Z", (20, 40),
+        cv2.putText(frame, "MOTION TRAIN: H=HELLO  J=J  Z=Z", (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-        cv2.putText(frame, "Press key then perform gesture | Q=Quit", (20, 70),
+        cv2.putText(frame, "Tip: keep hand centered + move slower", (20, 70),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 2)
+        cv2.putText(frame, "Press key to record | Q=Quit", (20, 100),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 2)
 
         cv2.imshow("SignBridge Motion TRAIN", frame)
         key = cv2.waitKey(1) & 0xFF
 
-        if key == ord("q"): break
+        if key == ord("q"):
+            break
 
         if key in LABEL_MAP:
             label = LABEL_MAP[key]
-            print(f"\n⏺ Recording {label} sequence ({SEQ_LEN} frames)")
+            print(f"\n⏺ Recording {label} (need {SEQ_LEN} valid frames)")
+
+            # Countdown so you can start moving AFTER pressing key
+            for s in [3, 2, 1]:
+                retc, fc = cap.read()
+                if not retc or fc is None:
+                    continue
+                fc = cv2.flip(fc, 1)
+                cv2.putText(fc, f"GET READY: {s}", (20, 140),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 255), 3)
+                cv2.imshow("SignBridge Motion TRAIN", fc)
+                cv2.waitKey(300)
 
             seq = []
-            ok = True
+            attempts = 0
 
-            for t in range(SEQ_LEN):
+            while len(seq) < SEQ_LEN and attempts < MAX_ATTEMPTS:
+                attempts += 1
+
                 ret2, f2 = cap.read()
-                if not ret2:
-                    ok = False
-                    break
+                if not ret2 or f2 is None:
+                    continue
 
                 f2 = cv2.flip(f2, 1)
                 rgb = cv2.cvtColor(f2, cv2.COLOR_BGR2RGB)
                 mp_img = mp_image(image_format=mp_image_format.SRGB, data=rgb)
-                result = landmarker.detect_for_video(mp_img, int(time.time() * 1000))
 
-                if not (result.hand_landmarks and len(result.hand_landmarks) > 0):
-                    ok = False
-                    cv2.putText(f2, "NO HAND - RETRY", (20, 120),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
-                    cv2.imshow("SignBridge Motion TRAIN", f2)
-                    cv2.waitKey(500)
-                    break
+                ts += 33  # monotonic timestamps for VIDEO mode
+                result = landmarker.detect_for_video(mp_img, ts)
 
-                h = result.hand_landmarks[0]
-                feats63 = extract_63(h)
-                seq.append(feats63)
+                detected = result.hand_landmarks and len(result.hand_landmarks) > 0
 
-                # Draw + progress
-                for lm in h:
-                    x, y = int(lm.x * f2.shape[1]), int(lm.y * f2.shape[0])
-                    cv2.circle(f2, (x, y), 4, (0, 255, 0), -1)
+                if detected:
+                    h = result.hand_landmarks[0]
+                    seq.append(extract_63(h))
 
-                cv2.putText(f2, f"{label}: {t+1}/{SEQ_LEN}", (20, 120),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+                    for lm in h:
+                        x, y = int(lm.x * f2.shape[1]), int(lm.y * f2.shape[0])
+                        cv2.circle(f2, (x, y), 4, (0, 255, 0), -1)
+
+                # UI progress even when not detected
+                cv2.putText(f2, f"{label} frames: {len(seq)}/{SEQ_LEN}", (20, 120),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1,
+                            (0, 255, 0) if detected else (0, 0, 255), 3)
+                cv2.putText(f2, f"Attempts: {attempts}/{MAX_ATTEMPTS}", (20, 155),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
                 cv2.imshow("SignBridge Motion TRAIN", f2)
                 cv2.waitKey(1)
                 time.sleep(FRAME_DELAY)
 
-            if ok and len(seq) == SEQ_LEN:
+            if len(seq) == SEQ_LEN:
                 row = np.concatenate(seq, axis=0).tolist()
                 row.append(label)
 
@@ -135,7 +172,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
 
                 print(f"✅ Saved motion sequence: {label}")
             else:
-                print("❌ Sequence discarded (no hand / not enough frames)")
+                print("❌ Failed to collect enough valid frames. Try slower + better light.")
 
     cap.release()
     cv2.destroyAllWindows()
