@@ -1,1 +1,33 @@
-ÿþ
+C:.
+|   file_structure.txt
+|   hand_landmarker.task
+|   LICENSE
+|   readme.md
+|   signbridge.py
+|   
++---dataset
+|   +---motion
+|   |   |   motion_testing_dataset.py
+|   |   |   motion_training_dataset.py
+|   |   |   
+|   |   +---testing
+|   |   \---training
+|   \---static
+|       |   static_testing_dataset.py
+|       |   static_training_dataset.py
+|       |   
+|       +---testing
+|       |       signbridge_landmarks_test.csv
+|       |       
+|       \---training
+|               signbridge_landmarks_train.csv
+|               
++---models
+|       model_tester.py
+|       model_trainer.py
+|       motion_trainer.py
+|       signbridge_model.pkl
+|       
+\---results
+        accuracy.png
+        
