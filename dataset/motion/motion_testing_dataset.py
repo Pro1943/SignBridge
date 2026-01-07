@@ -11,10 +11,10 @@ from mediapipe.tasks.python import vision
 # SETTINGS
 # =========================
 SEQ_LEN = 16
-FRAME_DELAY = 0.01          # keep small; motion needs more attempts
-MAX_ATTEMPTS = 90           # max frames to try to collect 16 valid ones (~3 sec)
+FRAME_DELAY = 0.01          # motion needs more attempts
+MAX_ATTEMPTS = 120           # max frames to try to collect 16 valid ones (~4 sec)
 
-ROOT = Path(__file__).resolve().parents[2]  # .../SignBridge
+ROOT = Path(__file__).resolve().parents[2]
 TASK_PATH = ROOT / "hand_landmarker.task"
 OUT_DIR = Path(__file__).resolve().parent / "testing"
 CSV_PATH = OUT_DIR / "motion_sequences_test.csv"
@@ -46,7 +46,7 @@ options = HandLandmarkerOptions(
 )
 
 # =========================
-# CSV HEADER (ALWAYS REPAIR)
+# CSV HEADER
 # =========================
 header = []
 for t in range(SEQ_LEN):
@@ -178,3 +178,4 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
 
 print(f"\n📁 Final motion testing dataset: {CSV_PATH}")
 print("✅ Collection complete.")
+# =========================

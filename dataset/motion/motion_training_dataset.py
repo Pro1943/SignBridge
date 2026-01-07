@@ -46,7 +46,7 @@ options = HandLandmarkerOptions(
 )
 
 # =========================
-# CSV HEADER (ALWAYS REPAIR)
+# CSV HEADER
 # =========================
 header = []
 for t in range(SEQ_LEN):
@@ -179,3 +179,4 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
 
 print(f"\n📁 Final motion training dataset: {CSV_PATH}")
 print("✅ Collection complete.")
+# =========================

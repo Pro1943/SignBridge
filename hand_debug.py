@@ -25,7 +25,7 @@ options = HandLandmarkerOptions(
 )
 
 with HandLandmarker.create_from_options(options) as landmarker:
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Windows: more reliable for some webcams
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
@@ -33,7 +33,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
         print("❌ Camera not opened")
         raise SystemExit(1)
 
-    ts = 0  # manual monotonic timestamp
+    ts = 0
     while True:
         ret, frame = cap.read()
         if not ret or frame is None:
@@ -44,7 +44,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
 
         mp_img = mp_image(image_format=mp_image_format.SRGB, data=rgb)
 
-        ts += 33  # ~30 FPS monotonic timestamps (IMPORTANT)
+        ts += 33
         result = landmarker.detect_for_video(mp_img, ts)
 
         detected = (result.hand_landmarks is not None) and (len(result.hand_landmarks) > 0)

@@ -7,19 +7,16 @@ import joblib
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-# =========================
-# PERF TUNING (edit these)
-# =========================
 CAM_W, CAM_H = 640, 480         # lower capture res = faster
 PROCESS_EVERY = 2               # run MediaPipe every N frames (2 = ~half compute)
 TS_STEP_MS = 33 * PROCESS_EVERY # monotonic timestamps for VIDEO mode
 DRAW_LANDMARKS = True
 
 MOTION_GATE = 0.20
-STATIC_MIN_CONF = 75.0
-MOTION_MIN_CONF = 60.0
+STATIC_MIN_CONF = 60.0
+MOTION_MIN_CONF = 52.0
 SEQ_LEN = 16
-COOLDOWN_FRAMES = 10
+COOLDOWN_FRAMES = 5
 
 # =========================
 # PATHS
@@ -87,8 +84,6 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_W)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_H)
-
-    # MJPG can improve capture FPS on Windows webcams
     try:
         cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
     except:
@@ -184,9 +179,10 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
         cv2.putText(frame, f"FPS: {int(fps_smooth)}", (25, 75),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (160, 255, 160), 2)
 
-        cv2.imshow("SignBridge (Optimized)", frame)
+        cv2.imshow("SignBridge", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     cap.release()
     cv2.destroyAllWindows()
+# =========================
