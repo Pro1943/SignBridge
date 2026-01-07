@@ -1,11 +1,20 @@
+from pathlib import Path
 import cv2
 import mediapipe as mp
 import csv
-import os
 import time
-import pandas as pd
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+
+# =========================
+# Paths (relative to this file)
+# =========================
+ROOT = Path(__file__).resolve().parents[2]  # .../SignBridge
+TASK_PATH = ROOT / "hand_landmarker.task"
+OUT_DIR = Path(__file__).resolve().parent / "testing"
+TEST_CSV = OUT_DIR / "signbridge_landmarks_test.csv"
+
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # MediaPipe Setup
 BaseOptions = python.BaseOptions
@@ -16,7 +25,7 @@ VisionRunningMode = vision.RunningMode
 mp_image = mp.Image
 mp_image_format = mp.ImageFormat
 
-base_options = BaseOptions(model_asset_path="./hand_landmarker.task")
+base_options = BaseOptions(model_asset_path=str(TASK_PATH))
 options = HandLandmarkerOptions(
     base_options=base_options,
     running_mode=VisionRunningMode.VIDEO,
@@ -25,21 +34,14 @@ options = HandLandmarkerOptions(
     min_tracking_confidence=0.7,
 )
 
-# TESTING dataset
-os.makedirs("dataset/testing", exist_ok=True)
-TEST_CSV = "dataset/testing/signbridge_landmarks_test.csv"
-
 # Header
 header = [f"x{i}" for i in range(21)] + [f"y{i}" for i in range(21)] + [f"z{i}" for i in range(21)] + ["label"]
 
-try:
-    with open(TEST_CSV, "x", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
-except FileExistsError:
-    pass
+if not TEST_CSV.exists():
+    with open(TEST_CSV, "w", newline="") as f:
+        csv.writer(f).writerow(header)
 
-print("🎥 TESTING Dataset Collection")
+print("🎥 STATIC TESTING Dataset Collection")
 print("Keys: A='A' | H='H' | G='GOOD' | B='BAD' | Q=Quit")
 print(f"Saving: {TEST_CSV}")
 
@@ -70,7 +72,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
                    (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255 if hand_detected else 0, 0), 2)
         cv2.putText(frame, "A/H/G/B=Save | Q=Quit", (20, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
-        cv2.imshow("TESTING Dataset Collector", frame)
+        cv2.imshow("Static TESTING Dataset Collector", frame)
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"): break
@@ -94,3 +96,4 @@ with HandLandmarker.create_from_options(options) as landmarker:
     cv2.destroyAllWindows()
 
 print(f"📁 Test data ready: {TEST_CSV}")
+print("✅ Dataset collection complete.")

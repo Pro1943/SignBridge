@@ -1,8 +1,8 @@
+from pathlib import Path
 import cv2
 import mediapipe as mp
 import numpy as np
 import csv
-import os
 import time
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
@@ -10,10 +10,15 @@ from mediapipe.tasks.python import vision
 # =========================
 # SETTINGS
 # =========================
-SEQ_LEN = 16          # frames per sequence
-FRAME_DELAY = 0.03    # ~30 FPS
-OUT_DIR = "dataset/motion/training"
-CSV_PATH = os.path.join(OUT_DIR, "motion_sequences_train.csv")
+SEQ_LEN = 16
+FRAME_DELAY = 0.03
+
+ROOT = Path(__file__).resolve().parents[2]  # .../SignBridge
+TASK_PATH = ROOT / "hand_landmarker.task"
+OUT_DIR = Path(__file__).resolve().parent / "training"
+CSV_PATH = OUT_DIR / "motion_sequences_train.csv"
+
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 LABEL_MAP = {
     ord("h"): "HELLO",
@@ -21,9 +26,7 @@ LABEL_MAP = {
     ord("z"): "Z",
 }
 
-# =========================
 # MediaPipe Setup
-# =========================
 BaseOptions = python.BaseOptions
 HandLandmarkerOptions = vision.HandLandmarkerOptions
 VisionRunningMode = vision.RunningMode
@@ -31,7 +34,7 @@ VisionRunningMode = vision.RunningMode
 mp_image = mp.Image
 mp_image_format = mp.ImageFormat
 
-base_options = BaseOptions(model_asset_path="./hand_landmarker.task")
+base_options = BaseOptions(model_asset_path=str(TASK_PATH))
 options = HandLandmarkerOptions(
     base_options=base_options,
     running_mode=VisionRunningMode.VIDEO,
@@ -40,18 +43,14 @@ options = HandLandmarkerOptions(
     min_tracking_confidence=0.7,
 )
 
-# =========================
 # CSV Setup
-# =========================
-os.makedirs(OUT_DIR, exist_ok=True)
-
 header = []
 for t in range(SEQ_LEN):
     for i in range(21):
         header += [f"x{i}_t{t}", f"y{i}_t{t}", f"z{i}_t{t}"]
 header.append("label")
 
-if not os.path.exists(CSV_PATH):
+if not CSV_PATH.exists():
     with open(CSV_PATH, "w", newline="") as f:
         csv.writer(f).writerow(header)
 
@@ -72,8 +71,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
 
     while cap.isOpened():
         ret, frame = cap.read()
-        if not ret:
-            break
+        if not ret: break
 
         frame = cv2.flip(frame, 1)
 
@@ -85,8 +83,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
         cv2.imshow("SignBridge Motion TRAIN", frame)
         key = cv2.waitKey(1) & 0xFF
 
-        if key == ord("q"):
-            break
+        if key == ord("q"): break
 
         if key in LABEL_MAP:
             label = LABEL_MAP[key]
@@ -144,3 +141,4 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
     cv2.destroyAllWindows()
 
 print(f"\n📁 Final motion training dataset: {CSV_PATH}")
+print("✅ Collection complete.")

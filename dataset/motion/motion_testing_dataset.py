@@ -1,8 +1,8 @@
+from pathlib import Path
 import cv2
 import mediapipe as mp
 import numpy as np
 import csv
-import os
 import time
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
@@ -10,10 +10,15 @@ from mediapipe.tasks.python import vision
 # =========================
 # SETTINGS
 # =========================
-SEQ_LEN = 16          # frames per sequence
-FRAME_DELAY = 0.03    # ~30 FPS
-OUT_DIR = "dataset/motion/testing"
-CSV_PATH = os.path.join(OUT_DIR, "motion_sequences_test.csv")
+SEQ_LEN = 16
+FRAME_DELAY = 0.03
+
+ROOT = Path(__file__).resolve().parents[2]  # .../SignBridge
+TASK_PATH = ROOT / "hand_landmarker.task"
+OUT_DIR = Path(__file__).resolve().parent / "testing"
+CSV_PATH = OUT_DIR / "motion_sequences_test.csv"
+
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 LABEL_MAP = {
     ord("h"): "HELLO",
@@ -21,9 +26,7 @@ LABEL_MAP = {
     ord("z"): "Z",
 }
 
-# =========================
 # MediaPipe Setup
-# =========================
 BaseOptions = python.BaseOptions
 HandLandmarkerOptions = vision.HandLandmarkerOptions
 VisionRunningMode = vision.RunningMode
@@ -31,7 +34,7 @@ VisionRunningMode = vision.RunningMode
 mp_image = mp.Image
 mp_image_format = mp.ImageFormat
 
-base_options = BaseOptions(model_asset_path="./hand_landmarker.task")
+base_options = BaseOptions(model_asset_path=str(TASK_PATH))
 options = HandLandmarkerOptions(
     base_options=base_options,
     running_mode=VisionRunningMode.VIDEO,
@@ -40,22 +43,18 @@ options = HandLandmarkerOptions(
     min_tracking_confidence=0.7,
 )
 
-# =========================
 # CSV Setup
-# =========================
-os.makedirs(OUT_DIR, exist_ok=True)
-
 header = []
 for t in range(SEQ_LEN):
     for i in range(21):
         header += [f"x{i}_t{t}", f"y{i}_t{t}", f"z{i}_t{t}"]
 header.append("label")
 
-if not os.path.exists(CSV_PATH):
+if not CSV_PATH.exists():
     with open(CSV_PATH, "w", newline="") as f:
         csv.writer(f).writerow(header)
 
-print("🎥 Motion Test collector")
+print("🎥 Motion TEST collector")
 print("Keys: H=HELLO | J=J | Z=Z | Q=Quit")
 print(f"Saves to: {CSV_PATH}")
 
@@ -72,21 +71,19 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
 
     while cap.isOpened():
         ret, frame = cap.read()
-        if not ret:
-            break
+        if not ret: break
 
         frame = cv2.flip(frame, 1)
 
-        cv2.putText(frame, "MOTION Test: H=HELLO J=J Z=Z", (20, 40),
+        cv2.putText(frame, "MOTION TEST: H=HELLO J=J Z=Z", (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
         cv2.putText(frame, "Press key then perform gesture | Q=Quit", (20, 70),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 2)
 
-        cv2.imshow("SignBridge Motion Test", frame)
+        cv2.imshow("SignBridge Motion TEST", frame)
         key = cv2.waitKey(1) & 0xFF
 
-        if key == ord("q"):
-            break
+        if key == ord("q"): break
 
         if key in LABEL_MAP:
             label = LABEL_MAP[key]
@@ -110,7 +107,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
                     ok = False
                     cv2.putText(f2, "NO HAND - RETRY", (20, 120),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
-                    cv2.imshow("SignBridge Motion Test", f2)
+                    cv2.imshow("SignBridge Motion TEST", f2)
                     cv2.waitKey(500)
                     break
 
@@ -125,7 +122,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
 
                 cv2.putText(f2, f"{label}: {t+1}/{SEQ_LEN}", (20, 120),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
-                cv2.imshow("SignBridge Motion TRAIN", f2)
+                cv2.imshow("SignBridge Motion TEST", f2)
                 cv2.waitKey(1)
                 time.sleep(FRAME_DELAY)
 
@@ -144,3 +141,4 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
     cv2.destroyAllWindows()
 
 print(f"\n📁 Final motion testing dataset: {CSV_PATH}")
+print("✅ Collection complete.")
