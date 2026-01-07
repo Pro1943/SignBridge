@@ -1,3 +1,4 @@
+from pathlib import Path
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -7,10 +8,30 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 # =========================
+# PATHS (match your structure)
+# =========================
+ROOT = Path(__file__).resolve().parent  # project root (C:.)
+TASK_PATH = ROOT / "hand_landmarker.task"
+
+STATIC_MODEL_PATH = ROOT / "models" / "signbridge_model.pkl"
+MOTION_MODEL_PATH = ROOT / "models" / "signbridge_motion_model.pkl"
+
+# =========================
 # LOAD MODELS
 # =========================
-static_model = joblib.load("signbridge_model.pkl")              # 63 features
-motion_model = joblib.load("signbridge_motion_model.pkl")       # 16*63 features
+if not STATIC_MODEL_PATH.exists():
+    print(f"❌ Static model not found: {STATIC_MODEL_PATH}")
+    print("Run: python models/model_trainer.py")
+    raise SystemExit(1)
+
+if not MOTION_MODEL_PATH.exists():
+    print(f"❌ Motion model not found: {MOTION_MODEL_PATH}")
+    print("Run: python models/motion_trainer.py")
+    raise SystemExit(1)
+
+static_model = joblib.load(STATIC_MODEL_PATH)   # 63 features
+motion_model = joblib.load(MOTION_MODEL_PATH)   # 16*63 features
+print("✅ Models loaded")
 
 # =========================
 # MediaPipe Setup
@@ -22,7 +43,7 @@ VisionRunningMode = vision.RunningMode
 mp_image = mp.Image
 mp_image_format = mp.ImageFormat
 
-base_options = BaseOptions(model_asset_path="./hand_landmarker.task")
+base_options = BaseOptions(model_asset_path=str(TASK_PATH))
 options = HandLandmarkerOptions(
     base_options=base_options,
     running_mode=VisionRunningMode.VIDEO,
@@ -39,7 +60,7 @@ motion_buffer = []     # list of (63,) vectors
 wrist_x_buf = []
 wrist_y_buf = []
 
-MOTION_GATE = 0.20         # increase if motion triggers too easily
+MOTION_GATE = 0.20
 STATIC_MIN_CONF = 75.0
 MOTION_MIN_CONF = 60.0
 
@@ -65,7 +86,6 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
         result = landmarker.detect_for_video(mp_img, int(time.time() * 1000))
 
         chosen = None
-        chosen_conf = 0.0
 
         if result.hand_landmarks and len(result.hand_landmarks) > 0:
             h = result.hand_landmarks[0]
@@ -73,7 +93,8 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
             # Draw landmarks
             for i, lm in enumerate(h):
                 x, y = int(lm.x * frame.shape[1]), int(lm.y * frame.shape[0])
-                cv2.circle(frame, (x, y), 3, (0, 255, 0), -1)
+                color = (0, 255, 255) if i % 5 == 0 else (0, 255, 0)
+                cv2.circle(frame, (x, y), 5 if i % 5 == 0 else 3, color, -1)
 
             # Current 63
             feats63 = np.array([[lm.x, lm.y, lm.z] for lm in h], dtype=np.float32).flatten()
@@ -90,7 +111,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
 
             # --- STATIC PRED ---
             static_pred = static_model.predict([feats63])[0]
-            static_conf = static_model.predict_proba([feats63]).max() * 100.0
+            static_conf = float(static_model.predict_proba([feats63]).max() * 100.0)
 
             # --- MOTION SCORE ---
             motion_score = 0.0
@@ -103,16 +124,13 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
             if len(motion_buffer) == SEQ_LEN:
                 seq_feats = np.concatenate(motion_buffer, axis=0)  # (16*63,)
                 motion_pred = motion_model.predict([seq_feats])[0]
-                motion_conf = motion_model.predict_proba([seq_feats]).max() * 100.0
+                motion_conf = float(motion_model.predict_proba([seq_feats]).max() * 100.0)
 
             # --- CHOOSE WINNER ---
-            # If strong motion, trust motion model; otherwise trust static model
             if motion_pred and motion_score >= MOTION_GATE and motion_conf >= MOTION_MIN_CONF:
                 chosen = motion_pred
-                chosen_conf = motion_conf
             elif static_conf >= STATIC_MIN_CONF:
                 chosen = static_pred
-                chosen_conf = static_conf
 
         # cooldown to avoid flicker
         if chosen and cooldown == 0:
@@ -122,7 +140,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
             cooldown -= 1
 
         # UI corner
-        cv2.rectangle(frame, (20, 20), (420, 80), (25, 25, 25), -1)
+        cv2.rectangle(frame, (20, 20), (360, 80), (25, 25, 25), -1)
         cv2.putText(frame, f"Pred: {last_text}", (30, 60),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
