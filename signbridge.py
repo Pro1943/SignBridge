@@ -12,7 +12,7 @@ PROCESS_EVERY = 2               # run MediaPipe every N frames (2 = ~half comput
 TS_STEP_MS = 33 * PROCESS_EVERY # monotonic timestamps for VIDEO mode
 DRAW_LANDMARKS = True
 
-MOTION_GATE = 0.20
+MOTION_GATE = 0.15               # min motion score to run motion model
 STATIC_MIN_CONF = 60.0
 MOTION_MIN_CONF = 52.0
 SEQ_LEN = 16
