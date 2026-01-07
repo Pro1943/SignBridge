@@ -1,4 +1,4 @@
-C:.
+C:
 |   file_structure.txt
 |   hand_landmarker.task
 |   LICENSE
