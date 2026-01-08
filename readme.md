@@ -57,7 +57,7 @@ Webcam (640x480) → MediaPipe HandLandmarker → 63 Features
 ## What's Built vs Future Work
 
 **Built**: Complete end-to-end prototype (collect → train → infer)   
-**Future**: ESP32 integration (data capture & I/O), Android app, expanded vocabulary, multi-signer training
+**Future**: Android app, expanded vocabulary, multi-signer training
 
 ## Repository Structure
 ```
