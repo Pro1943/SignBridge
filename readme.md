@@ -44,7 +44,7 @@ Webcam (640x480) → MediaPipe HandLandmarker → 63 Features
 - Monotonic timestamps for VIDEO mode stability
 
 ### Performance
-- ~125 FPS (no hand), ~75 FPS (hand detected), ~3-4 FPS (when models are loaded)
+- ~125 FPS (no hand), ~75 FPS (hand detected), ~3-4 FPS (when both models are loaded)
 - Windows laptop + integrated webcam
 - Single signer dataset (controlled lighting)
 
@@ -57,7 +57,7 @@ Webcam (640x480) → MediaPipe HandLandmarker → 63 Features
 - No real-time translation (classification only)
 
 ## Model Evaluation Results
-
+The model evaluation has been done using the an seperate testing data. This test runs everytime the model is trained to show how the traing went and how good the ML model actually is when it comes to using data on which it was not trained on.
 ### Static Model:
 <img src="./results/accuracy.png" width="400" hight="400">
 
