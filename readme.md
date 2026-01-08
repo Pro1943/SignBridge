@@ -122,8 +122,8 @@ python signbridge.py
 
 **Creator Colosseum: Student Founders. Real Startups**  
 **Team**: Solo student developer  
-**Timeline**: Initial MVP developed over one focused week, with iterative testing and refinement  
-**Focus**: Realistic MVP demonstrating technical feasibility for accessibility
+**Timeline**: Initial MVP (Minimum Viable Product) developed over one focused week, with iterative testing and refinement  
+**Focus**: Realistic MVP (Minimum Viable Product) demonstrating technical feasibility for accessibility
 
 ---
 
