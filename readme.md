@@ -42,7 +42,7 @@ Webcam (640x480) → MediaPipe HandLandmarker → 63 Features
 - Monotonic timestamps for VIDEO mode stability
 
 ### Performance
-- ~25 FPS (no hand), ~12 FPS (hand detected)
+- ~125 FPS (no hand), ~75 FPS (hand detected), ~3-4 FPS (when models are loaded)
 - Windows laptop + integrated webcam
 - Single signer dataset (controlled lighting)
 
