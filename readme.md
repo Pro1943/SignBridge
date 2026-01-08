@@ -1,3 +1,5 @@
+<img src="./assets/banner.png" width="640" hight="480">
+
 # SignBridge
 
 **Dual-mode sign language classifier for classroom accessibility.** Combines static hand pose recognition (A, H, GOOD, BAD) with motion gesture recognition (HELLO, J, Z) using MediaPipe landmarks and RandomForest models. Desktop webcam prototype optimized for low-end hardware.
@@ -54,6 +56,15 @@ Webcam (640x480) → MediaPipe HandLandmarker → 63 Features
 - Classroom lighting required for reliable detection
 - No real-time translation (classification only)
 
+## Model Evaluation Results
+
+### Static Model:
+<img src="./results/accuracy.png" width="400" hight="400">
+
+
+### Motion Model:
+<img src="./results/motion_confusion.png" width="400" hight="400">
+
 ## What's Built vs Future Work
 
 **Built**: Complete end-to-end prototype (collect → train → infer)   
@@ -80,6 +91,7 @@ SignBridge/
 ```
 **Why this structure?**   
 The repository is structured to clearly separate data collection, model training, and live inference.
+
 ## Quick Start
 
 ### Prerequisites
