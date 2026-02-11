@@ -127,5 +127,14 @@ python signbridge.py
 
 ---
 
+## 🎯 Built As Part Of
+
+“12 Hackathons in 12 Months”
+Month 1/12
+
+SignBridge isn't just a projec. It's an attempt to do good to the socity.
+
+---
+
 *Built with discipline, not hype.*
 ---
